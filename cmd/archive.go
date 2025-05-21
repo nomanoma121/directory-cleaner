@@ -51,7 +51,7 @@ var archiveCmd = &cobra.Command{
 			}
 			targetDirs = append(targetDirs, entry)
 		}
-
+		successDirs := make([]os.DirEntry, 0)
 		// 古いディレクトリを順番にアーカイブ
 		for _, target := range targetDirs {
 			fullPath := filepath.Join(archivePath, target.Name())
@@ -148,6 +148,7 @@ var archiveCmd = &cobra.Command{
 				os.MkdirAll(tmpDir, 0755) // 再度tmpDirを作成
 				fmt.Println()
 			}
+			successDirs = append(successDirs, target)
 		}
 
 		fmt.Println("\nArchiving completed.")
@@ -164,8 +165,8 @@ var archiveCmd = &cobra.Command{
 		fmt.Print("Do you want to delete the original directories? [Y/n]: ")
 		fmt.Scanln(&response)
 		if response == "y" || response == "Y" {
-			for _, target := range targetDirs {
-				fullPath := filepath.Join(archivePath, target.Name())
+			for _, successDir := range successDirs {
+				fullPath := filepath.Join(archivePath, successDir.Name())
 				err = os.RemoveAll(fullPath)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to remove original directory %q: %v\n", fullPath, err)
