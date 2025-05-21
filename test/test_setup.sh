@@ -2,18 +2,29 @@
 
 set -e  # エラーで即終了
 
-# 各テストディレクトリの設定
+# 各テストディレクトリと使用するパッケージマネージャの設定
 declare -A dirs=(
   ["test1"]="."
   ["test2"]="tmp/tmp"
   ["test3"]="."
+  ["test4"]="."       # yarn
+  ["test5"]="."       # pnpm
+)
+
+declare -A managers=(
+  ["test1"]="npm"
+  ["test2"]="npm"
+  ["test3"]="npm"
+  ["test4"]="yarn"
+  ["test5"]="pnpm"
 )
 
 for test in "${!dirs[@]}"; do
   subdir="${dirs[$test]}"
   target="$test/$subdir"
+  manager="${managers[$test]}"
 
-  echo "==> セットアップ中: $target"
+  echo "==> セットアップ中: $target （使用: $manager）"
 
   if [ -d "$target/node_modules" ]; then
     echo "❌ $target はすでにセットアップされています。スキップします。"
@@ -24,13 +35,27 @@ for test in "${!dirs[@]}"; do
   mkdir -p "$target"
   touch "$test/tmp.md"
 
-  # npm init (必要であれば package.json を作る)
+  # package.json が無ければ作成
   if [ ! -f "$target/package.json" ]; then
     echo "{}" > "$target/package.json"
   fi
 
-  # Next.js をインストール
-  (cd "$target" && npm install next)
+  # 適切なコマンドで Next.js をインストール
+  case "$manager" in
+    npm)
+      (cd "$target" && npm install next)
+      ;;
+    yarn)
+      (cd "$target" && yarn add next)
+      ;;
+    pnpm)
+      (cd "$target" && pnpm add next)
+      ;;
+    *)
+      echo "⚠️ 未知のパッケージマネージャ: $manager"
+      exit 1
+      ;;
+  esac
 
   echo "✅ $target のセットアップ完了！"
 done
