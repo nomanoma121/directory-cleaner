@@ -5,3 +5,10 @@ dclean
 node_modules/
 
 *.zip
+
+# テストは生成できるため無視
+test1/
+test2/
+test3/
+test4/
+test5/
