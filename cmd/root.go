@@ -19,10 +19,10 @@ var rootCmd = &cobra.Command{
 		println()
 		fmt.Println(logo)
 		fmt.Println()
-		fmt.Println("A simple and powerful directory archiving tool.\n")
+		fmt.Println("A simple and powerful directory archiving tool.")
 
 		fmt.Println("Usage:")
-		fmt.Println("  dclean [command]\n")
+		fmt.Println("  dclean [command]")
 
 		fmt.Println("Available Commands:")
 		fmt.Printf("  %-10s %s\n", "archive", "Archive old directories by date")
