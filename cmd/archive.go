@@ -175,16 +175,6 @@ var archiveCmd = &cobra.Command{
 			successDirs = append(successDirs, target)
 		}
 
-		fmt.Println()
-		fmt.Println("✅ Archiving completed!!")
-
-		// アーカイブに成功したディレクトリを表示
-		fmt.Println()
-		fmt.Println("Successfully archived directories:")
-		for _, successDir := range successDirs {
-			fmt.Println(" -", successDir.Name())
-		}
-
 		// アーカイブの合計サイズを表示
 		fmt.Println()
 		if totalOriginalSize > 0 {
@@ -195,6 +185,16 @@ var archiveCmd = &cobra.Command{
 				float64(totalOriginalSize-totalArchivedSize)/float64(totalOriginalSize)*100)
 		} else {
 			fmt.Println("No directories were archived.")
+		}
+
+		fmt.Println()
+		fmt.Println("Archiving completed!!")
+
+		// アーカイブに成功したディレクトリを表示
+		fmt.Println()
+		fmt.Println("Successfully archived directories:")
+		for _, successDir := range successDirs {
+			fmt.Println(" -", successDir.Name())
 		}
 
 		// 元のディレクトリを削除するか確認
@@ -225,9 +225,9 @@ func init() {
 	rootCmd.AddCommand(archiveCmd)
 	archiveCmd.Flags().StringVarP(&archivePath, "path", "p", ".", "Directory to scan for archiving")
 	archiveCmd.Flags().IntVarP(&daysForArchive, "days", "d", 30, "Days threshold for last modification")
-	archiveCmd.Flags().BoolVarP(&useZip, "zip", "z", true, "Use zip archive instead of copy (default: true)")
-	archiveCmd.Flags().BoolVar(&removeNodeModules, "remove-node-modules", false, "Remove node_modules directories before archiving")
-	archiveCmd.Flags().BoolVar(&archiveAll, "all", false, "Archive all directories without checking last modification date")
+	archiveCmd.Flags().BoolVarP(&useZip, "no-zip", "n", true, "Use zip archive instead of copy (default: true)")
+	archiveCmd.Flags().BoolVarP(&removeNodeModules, "remove-node-modules", "r", false, "Remove node_modules directories before archiving")
+	archiveCmd.Flags().BoolVarP(&archiveAll, "all", "a", false, "Archive all directories without checking last modification date")
 }
 
 // formatBytes はバイト数を人間が読みやすい形式（KB, MB, GB）に変換します。
