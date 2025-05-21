@@ -3,9 +3,13 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	_ "embed"
 
 	"github.com/spf13/cobra"
+)
+
+var (
+	logo string 
 )
 
 var rootCmd = &cobra.Command{
@@ -13,7 +17,7 @@ var rootCmd = &cobra.Command{
 	Short: "A simple and powerful directory archiving tool",
 	Run: func(cmd *cobra.Command, args []string) {
 		println()
-		printLogo()
+		fmt.Println(logo)
 		fmt.Println()
 		fmt.Println("A simple and powerful directory archiving tool.\n")
 
@@ -40,14 +44,4 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-}
-
-func printLogo() {
-	logoPath := filepath.Join("assets", "logo.txt")
-	data, err := os.ReadFile(logoPath)
-	if err != nil {
-		fmt.Println("Error reading logo file:", err)
-		return
-	}
-	fmt.Println(string(data))
 }

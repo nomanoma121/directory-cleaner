@@ -27,7 +27,9 @@ func GetLatestModTime(dir string) (time.Time, error) {
 	return latest, err
 }
 
-func CopyDir(src string, dest string) error {
+// CopyDir は src ディレクトリの内容を dst ディレクトリにコピーします。
+// シンボリックリンクと通常のファイルを適切に処理します。
+func CopyDir(src, dst string) error {
 	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -38,26 +40,37 @@ func CopyDir(src string, dest string) error {
 			return err
 		}
 
-		targetPath := filepath.Join(dest, relPath)
+		destPath := filepath.Join(dst, relPath)
 
 		if info.IsDir() {
-			return os.MkdirAll(targetPath, info.Mode())
-		}
+			return os.MkdirAll(destPath, info.Mode())
+		} else if info.Mode()&os.ModeSymlink != 0 {
+			// シンボリックリンクの場合
+			linkTarget, err := os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("failed to read symlink %q: %w", path, err)
+			}
+			return os.Symlink(linkTarget, destPath)
+		} else {
+			// 通常のファイルの場合
+			srcFile, err := os.Open(path)
+			if err != nil {
+				return fmt.Errorf("failed to open source file %q: %w", path, err)
+			}
+			defer srcFile.Close()
 
-		srcFile, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer srcFile.Close()
+			dstFile, err := os.Create(destPath)
+			if err != nil {
+				return fmt.Errorf("failed to create destination file %q: %w", destPath, err)
+			}
+			defer dstFile.Close()
 
-		destFile, err := os.Create(targetPath)
-		if err != nil {
-			return err
+			_, err = io.Copy(dstFile, srcFile)
+			if err != nil {
+				return fmt.Errorf("failed to copy file %q to %q: %w", path, destPath, err)
+			}
+			return nil
 		}
-		defer destFile.Close()
-
-		_, err = io.Copy(destFile, srcFile)
-		return err
 	})
 }
 

@@ -16,6 +16,7 @@ var (
 	useZip            bool
 	response          string
 	removeNodeModules bool
+	archiveAll        bool
 )
 
 var archiveCmd = &cobra.Command{
@@ -61,7 +62,7 @@ var archiveCmd = &cobra.Command{
 				continue
 			}
 
-			if lastMod.Before(threshold) {
+			if lastMod.Before(threshold) || archiveAll {
 				fmt.Println("Archiving:", target.Name())
 				// tmpディレクトリに一時的にコピー
 				err = utils.CopyDir(fullPath, tmpDir)
@@ -184,6 +185,7 @@ func init() {
 	archiveCmd.Flags().IntVarP(&daysForArchive, "days", "d", 30, "Days threshold for last modification")
 	archiveCmd.Flags().BoolVarP(&useZip, "zip", "z", true, "Use zip archive instead of copy (default: true)")
 	archiveCmd.Flags().BoolVar(&removeNodeModules, "remove-node-modules", false, "Remove node_modules directories before archiving")
+	archiveCmd.Flags().BoolVar(&archiveAll, "all", false, "Archive all directories without checking last modification date")
 }
 
 // formatBytes はバイト数を人間が読みやすい形式（KB, MB, GB）に変換します。
