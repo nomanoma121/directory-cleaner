@@ -89,7 +89,7 @@ var archiveCmd = &cobra.Command{
 		successDirs := make([]os.DirEntry, 0)
 		// 古いディレクトリを順番にアーカイブ
 		for _, target := range targetDirs {
-			fmt.Println("Archiving:", target.Name())
+			fmt.Printf("Archiving %s...\n", target.Name())
 			fullPath := filepath.Join(archivePath, target.Name())
 			// tmpディレクトリに一時的にコピー
 			err = utils.CopyDir(fullPath, tmpDir)
@@ -120,14 +120,14 @@ var archiveCmd = &cobra.Command{
 					fmt.Fprintf(os.Stderr, "Failed to create zip %q: %v\n", zipPath, err)
 					continue
 				}
-				fmt.Println("Created zip:", zipPath)
+				fmt.Println("✅ Created zip:", zipPath)
 
 				// zipファイルサイズを取得
 				zipInfo, err := os.Stat(zipPath)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to get zip file size %q: %v\n", zipPath, err)
 				} else {
-					fmt.Printf("Original size: %s, Zipped size: %s, Saved: %s (%.2f%%)\n",
+					fmt.Printf("Original: %s, Zipped: %s, Saved: %s (%.2f%%)\n",
 						formatBytes(originalSize),
 						formatBytes(zipInfo.Size()),
 						formatBytes(originalSize-zipInfo.Size()),
@@ -137,12 +137,12 @@ var archiveCmd = &cobra.Command{
 				totalArchivedSize += zipInfo.Size()
 			} else {
 				copyPath := filepath.Join(archiveDir, target.Name())
-				err = os.Rename(tmpDir, copyPath)
+				err = utils.CopyDir(tmpDir, copyPath)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to move %q to %q: %v\n", tmpDir, copyPath, err)
+					fmt.Fprintf(os.Stderr, "Failed to copy %q to %q: %v\n", tmpDir, copyPath, err)
 					continue
 				}
-				fmt.Println("Copied to:", copyPath)
+				fmt.Println("✅ Copied to:", copyPath)
 
 				// コピー後のディレクトリサイズを取得
 				archivedDirSize, err := utils.GetDirSize(copyPath)
@@ -151,13 +151,13 @@ var archiveCmd = &cobra.Command{
 				} else {
 					// originalSize が 0 の場合は除算エラーを避ける
 					if originalSize > 0 {
-						fmt.Printf("Original size: %s, Copied size: %s, Saved: %s (%.2f%%)\n",
+						fmt.Printf("Original: %s, Copied: %s, Saved: %s (%.2f%%)\n",
 							formatBytes(originalSize),
 							formatBytes(archivedDirSize),
 							formatBytes(originalSize-archivedDirSize),
 							float64(originalSize-archivedDirSize)/float64(originalSize)*100)
 					} else {
-						fmt.Printf("Original size: %s, Copied size: %s, Saved: %s\n",
+						fmt.Printf("Original: %s, Copied: %s, Saved: %s\n",
 							formatBytes(originalSize),
 							formatBytes(archivedDirSize),
 							formatBytes(originalSize-archivedDirSize))
@@ -172,19 +172,24 @@ var archiveCmd = &cobra.Command{
 			// そのため、エラーをチェックせずに単純に削除を試みる
 			os.RemoveAll(tmpDir)      // tmpDirを次のループのために空にする
 			os.MkdirAll(tmpDir, 0755) // 再度tmpDirを作成
-			fmt.Println()
 			successDirs = append(successDirs, target)
 		}
 
+		fmt.Println()
+		fmt.Println("✅ Archiving completed!!")
+
+		// アーカイブに成功したディレクトリを表示
+		fmt.Println()
+		fmt.Println("Successfully archived directories:")
 		for _, successDir := range successDirs {
-			fmt.Println("Successfully archived:", successDir.Name())
+			fmt.Println(" -", successDir.Name())
 		}
-		fmt.Println("Archiving completed.")
 
 		// アーカイブの合計サイズを表示
+		fmt.Println()
 		if totalOriginalSize > 0 {
-			fmt.Printf("Total original size: %s\n", formatBytes(totalOriginalSize))
-			fmt.Printf("Total archived size: %s\n", formatBytes(totalArchivedSize))
+			fmt.Printf("Total original: %s\n", formatBytes(totalOriginalSize))
+			fmt.Printf("Total archived: %s\n", formatBytes(totalArchivedSize))
 			fmt.Printf("Total saved: %s (%.2f%%)\n",
 				formatBytes(totalOriginalSize-totalArchivedSize),
 				float64(totalOriginalSize-totalArchivedSize)/float64(totalOriginalSize)*100)
@@ -193,8 +198,10 @@ var archiveCmd = &cobra.Command{
 		}
 
 		// 元のディレクトリを削除するか確認
-		fmt.Print("Do you want to delete the original directories? [Y/n]: ")
+		fmt.Println()
+		fmt.Print("Delete original dirs? (failures will be skipped) [Y/n]: ")
 		fmt.Scanln(&response)
+		fmt.Println()
 		if response == "y" || response == "Y" {
 			for _, successDir := range successDirs {
 				fullPath := filepath.Join(archivePath, successDir.Name())
@@ -208,6 +215,9 @@ var archiveCmd = &cobra.Command{
 		} else {
 			fmt.Println("Original directories not removed.")
 		}
+
+		fmt.Println()
+		fmt.Println("All done ✨")
 	},
 }
 
