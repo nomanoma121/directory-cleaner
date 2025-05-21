@@ -27,6 +27,11 @@ var archiveCmd = &cobra.Command{
 		// tmpディレクトリと競合しないように隠しファイルにする
 		tmpDir := "./archive/.tmp"
 		os.MkdirAll(tmpDir, 0755)
+		// この関数が終了する前にtmpDirを確実に削除する
+		defer os.RemoveAll(tmpDir)
+
+		var totalOriginalSize int64
+		var totalArchivedSize int64
 
 		entries, err := os.ReadDir(archivePath)
 		if err != nil {
@@ -65,19 +70,19 @@ var archiveCmd = &cobra.Command{
 					continue
 				}
 
+				// アーカイブ前のディレクトリサイズを取得 (node_modules削除前)
+				originalSize, err := utils.GetDirSize(tmpDir)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to get original directory size %q: %v\n", tmpDir, err)
+					// エラーが発生しても処理を続行する originalSize は 0 のままになる
+				}
+
 				if removeNodeModules {
 					if err := utils.RemoveNodeModules(tmpDir); err != nil {
 						fmt.Fprintf(os.Stderr, "Failed to remove node_modules from %q: %v\n", tmpDir, err)
 						continue
 					}
 					fmt.Println("Removed node_modules from:", tmpDir)
-				}
-
-				// アーカイブ前のディレクトリサイズを取得
-				originalSize, err := utils.GetDirSize(tmpDir)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to get original directory size %q: %v\n", tmpDir, err)
-					// エラーが発生しても処理を続行する
 				}
 
 				// アーカイブを作成
@@ -101,6 +106,8 @@ var archiveCmd = &cobra.Command{
 							formatBytes(originalSize-zipInfo.Size()),
 							float64(originalSize-zipInfo.Size())/float64(originalSize)*100)
 					}
+					totalOriginalSize += originalSize
+					totalArchivedSize += zipInfo.Size()
 				} else {
 					copyPath := filepath.Join(archiveDir, target.Name())
 					err = os.Rename(tmpDir, copyPath)
@@ -109,18 +116,50 @@ var archiveCmd = &cobra.Command{
 						continue
 					}
 					fmt.Println("Copied to:", copyPath)
+
+					// コピー後のディレクトリサイズを取得
+					archivedDirSize, err := utils.GetDirSize(copyPath)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Failed to get archived directory size %q: %v\n", copyPath, err)
+					} else {
+						// originalSize が 0 の場合は除算エラーを避ける
+						if originalSize > 0 {
+							fmt.Printf("Original size: %s, Copied size: %s, Saved: %s (%.2f%%)\n",
+								formatBytes(originalSize),
+								formatBytes(archivedDirSize),
+								formatBytes(originalSize-archivedDirSize),
+								float64(originalSize-archivedDirSize)/float64(originalSize)*100)
+						} else {
+							fmt.Printf("Original size: %s, Copied size: %s, Saved: %s\n",
+								formatBytes(originalSize),
+								formatBytes(archivedDirSize),
+								formatBytes(originalSize-archivedDirSize))
+						}
+					}
+					totalOriginalSize += originalSize
+					totalArchivedSize += archivedDirSize
 				}
 
-				// tmpディレクトリを削除
-				err = os.RemoveAll(tmpDir)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to remove tmp dir %q: %v\n", tmpDir, err)
-					continue
-				}
+				// 各ターゲットの処理が終わった後にtmpDirをクリーンアップする
+				// ただし、Renameで移動した場合はtmpDirは既に存在しないのでエラーになる場合がある
+				// そのため、エラーをチェックせずに単純に削除を試みる
+				os.RemoveAll(tmpDir)      // tmpDirを次のループのために空にする
+				os.MkdirAll(tmpDir, 0755) // 再度tmpDirを作成
+				fmt.Println()
 			}
 		}
 
-		fmt.Println("Archiving completed.")
+		fmt.Println("\nArchiving completed.")
+		if totalOriginalSize > 0 {
+			fmt.Printf("Total original size: %s\n", formatBytes(totalOriginalSize))
+			fmt.Printf("Total archived size: %s\n", formatBytes(totalArchivedSize))
+			fmt.Printf("Total saved: %s (%.2f%%)\n",
+				formatBytes(totalOriginalSize-totalArchivedSize),
+				float64(totalOriginalSize-totalArchivedSize)/float64(totalOriginalSize)*100)
+		} else {
+			fmt.Println("No directories were archived.")
+		}
+
 		fmt.Print("Do you want to delete the original directories? [Y/n]: ")
 		fmt.Scanln(&response)
 		if response == "y" || response == "Y" {
