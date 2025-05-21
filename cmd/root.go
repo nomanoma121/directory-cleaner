@@ -12,6 +12,7 @@ var rootCmd = &cobra.Command{
 	Use:   "dclean",
 	Short: "A simple and powerful directory archiving tool",
 	Run: func(cmd *cobra.Command, args []string) {
+		println()
 		printLogo()
 		fmt.Println()
 		fmt.Println("A simple and powerful directory archiving tool.\n")

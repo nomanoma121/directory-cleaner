@@ -22,8 +22,8 @@ var archiveCmd = &cobra.Command{
 	Short: "Archive old directories by copying or zipping them",
 	Run: func(cmd *cobra.Command, args []string) {
 		threshold := time.Now().AddDate(0, 0, -daysForArchive)
-		archiveDir := "./archive"
-		os.MkdirAll(archiveDir, 0755)
+		tmpDir :=  "./archive/.tmp"
+		os.MkdirAll(tmpDir, 0755)
 
 		entries, err := os.ReadDir(archivePath)
 		if err != nil {
@@ -31,15 +31,18 @@ var archiveCmd = &cobra.Command{
 			return
 		}
 
+		// スキャン対象のディレクトリを取得(archiveディレクトリは除外
+		targetDirs := make([]os.DirEntry, 0)
 		for _, entry := range entries {
 			if entry.Name() == "archive" {
 				continue
 			}
-			if !entry.IsDir() {
-				continue
-			}
+			targetDirs = append(targetDirs, entry)
+		}
 
-			fullPath := filepath.Join(archivePath, entry.Name())
+		// 古いディレクトリを順番にアーカイブ
+		for _, target := range targetDirs {
+			fullPath := filepath.Join(archivePath, target.Name())
 
 			lastMod, err := utils.GetLatestModTime(fullPath)
 			if err != nil {
@@ -48,27 +51,50 @@ var archiveCmd = &cobra.Command{
 			}
 
 			if lastMod.Before(threshold) {
+				fmt.Println("Archiving:", target.Name())
+				// tmpディレクトリに一時的にコピー
+				err = utils.CopyDir(fullPath, tmpDir)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to copy %q to %q: %v\n", fullPath, tmpDir, err)
+					continue
+				}
+
 				if removeNodeModules {
-					err := utils.RemoveNodeModules(fullPath)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to remove node_modules in %s: %v\n", fullPath, err)
-					} else {
-						fmt.Printf("Removed node_modules in %s\n", fullPath)
+					nodeModulesPath := filepath.Join(tmpDir, "node_modules")
+					if _, err := os.Stat(nodeModulesPath); !os.IsNotExist(err) {
+						err = os.RemoveAll(nodeModulesPath)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Failed to remove %q: %v\n", nodeModulesPath, err)
+						}
 					}
 				}
+
+				// アーカイブを作成
 				if useZip {
-					zipName := filepath.Join(archiveDir, entry.Name()+".zip")
-					fmt.Printf("Zipping: %s -> %s\n", fullPath, zipName)
-					if err := utils.ZipDir(fullPath, zipName); err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to zip %s: %v\n", fullPath, err)
+					zipPath := filepath.Join(archivePath, target.Name()+".zip")
+					err = utils.ZipDir(tmpDir, zipPath)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Failed to create zip %q: %v\n", zipPath, err)
+						continue
 					}
+					fmt.Println("Created zip:", zipPath)
 				} else {
-					dest := filepath.Join(archiveDir, entry.Name())
-					fmt.Printf("Copying: %s -> %s\n", fullPath, dest)
-					if err := utils.CopyDir(fullPath, dest); err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to copy %s: %v\n", fullPath, err)
+					copyPath := filepath.Join(archivePath, target.Name())
+					err = os.Rename(tmpDir, copyPath)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Failed to move %q to %q: %v\n", tmpDir, copyPath, err)
+						continue
 					}
+					fmt.Println("Copied to:", copyPath)
 				}
+				
+				// tmpディレクトリを削除
+				err = os.RemoveAll(tmpDir)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to remove tmp dir %q: %v\n", tmpDir, err)
+					continue
+				}
+				fmt.Println("Removed tmp dir:", tmpDir)
 			}
 		}
 	},
