@@ -3,21 +3,22 @@ package cmd
 import (
 	"fmt"
 	"os"
-	_ "embed"
 
 	"github.com/spf13/cobra"
 )
 
-var (
-	logo string 
-)
+var logoData []byte
+
+func SetLogo(data []byte) {
+	logoData = data
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "dclean",
 	Short: "A simple and powerful directory archiving tool",
 	Run: func(cmd *cobra.Command, args []string) {
 		println()
-		fmt.Println(logo)
+		fmt.Println(string(logoData))
 		fmt.Println()
 		fmt.Println("A simple and powerful directory archiving tool.")
 
